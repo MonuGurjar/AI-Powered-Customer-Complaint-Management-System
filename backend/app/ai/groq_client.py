@@ -7,22 +7,25 @@ logger = logging.getLogger(__name__)
 
 class GroqLLMClient:
     def __init__(self):
-        self.api_key = settings.GROQ_API_KEY or os.getenv("GROQ_API_KEY", "")
         self.model = settings.DEFAULT_GROQ_MODEL
-        self.client = None
 
-        if self.api_key:
+    def _get_client(self):
+        from app.config import settings
+        api_key = settings.GROQ_API_KEY or os.getenv("GROQ_API_KEY", "")
+        if api_key:
             try:
                 from groq import Groq
-                self.client = Groq(api_key=self.api_key)
+                return Groq(api_key=api_key)
             except Exception as e:
                 logger.warning(f"Failed to initialize Groq client: {e}")
+        return None
 
     def call_json_completion(self, system_prompt: str, user_prompt: str) -> dict:
         """Call Groq API expecting JSON response, with fallback to rule-based parser if key missing."""
-        if self.client:
+        client = self._get_client()
+        if client:
             try:
-                chat_completion = self.client.chat.completions.create(
+                chat_completion = client.chat.completions.create(
                     messages=[
                         {"role": "system", "content": system_prompt + "\nReturn ONLY valid JSON format."},
                         {"role": "user", "content": user_prompt}
@@ -40,9 +43,10 @@ class GroqLLMClient:
 
     def call_text_completion(self, system_prompt: str, user_prompt: str) -> str:
         """Call Groq API for free-text completion (Copilot Chat)."""
-        if self.client:
+        client = self._get_client()
+        if client:
             try:
-                chat_completion = self.client.chat.completions.create(
+                chat_completion = client.chat.completions.create(
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
@@ -54,7 +58,7 @@ class GroqLLMClient:
                 logger.error(f"Groq text API error: {e}")
 
         return (
-            f"AI Copilot Response: Based on pharmaceutical QMS guidelines (ICH Q9 & Q10), "
+            f"Based on pharmaceutical QMS guidelines (ICH Q9 & Q10), "
             f"the complaint requires quality assessment for batch record review, retain sample analysis, "
             f"and CAPA verification. Let me know if you would like me to draft an investigation protocol."
         )

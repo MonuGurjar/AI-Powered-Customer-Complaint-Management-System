@@ -1,7 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { X, Bot, Send, ShieldAlert, CheckCircle, AlertTriangle, FileSpreadsheet, Sparkles } from 'lucide-react';
+import { X, Bot, Send, ShieldAlert, CheckCircle, AlertTriangle, Sparkles, FileText } from 'lucide-react';
 import { toggleCopilotDrawer, sendCopilotMessage } from '../store/aiSlice';
+
+function FormattedMessage({ text }) {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {lines.map((line, idx) => {
+        if (!line.trim()) return <div key={idx} style={{ height: '4px' }} />;
+        
+        const parts = line.split(/(\*\*.*?\*\*)/g);
+        const formattedLine = parts.map((part, pIdx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={pIdx} style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>{part.slice(2, -2)}</strong>;
+          }
+          return part;
+        });
+
+        if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+          return (
+            <div key={idx} style={{ display: 'flex', gap: '6px', paddingLeft: '6px' }}>
+              <span style={{ color: 'var(--accent-cyan)' }}>•</span>
+              <span>{formattedLine}</span>
+            </div>
+          );
+        }
+
+        return <div key={idx}>{formattedLine}</div>;
+      })}
+    </div>
+  );
+}
 
 export default function AICopilotDrawer() {
   const dispatch = useDispatch();
@@ -9,6 +41,11 @@ export default function AICopilotDrawer() {
   const selectedComplaint = useSelector((state) => state.complaints.selectedComplaint);
 
   const [inputPrompt, setInputPrompt] = useState('');
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, chatLoading]);
 
   if (!copilotDrawerOpen) return null;
 
@@ -36,10 +73,10 @@ export default function AICopilotDrawer() {
       top: 0,
       right: 0,
       bottom: 0,
-      width: '460px',
+      width: '480px',
       background: '#0d131f',
       borderLeft: 'var(--glass-border)',
-      boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.5)',
+      boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.6)',
       zIndex: 100,
       display: 'flex',
       flexDirection: 'column',
@@ -161,33 +198,76 @@ export default function AICopilotDrawer() {
 
         {/* Copilot Interactive Chat Stream */}
         <div style={{ marginTop: 'auto', borderTop: 'var(--glass-border)', paddingTop: '16px' }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '10px' }}>
-            Copilot QMS Assistant
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Bot size={16} color="var(--accent-cyan)" />
+            <span>Copilot QMS Assistant</span>
           </div>
 
-          <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+          <div style={{
+            height: '280px',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            marginBottom: '12px',
+            paddingRight: '6px'
+          }}>
             {chatMessages.map((msg, i) => (
-              <div
-                key={i}
-                style={{
-                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '85%',
-                  padding: '10px 12px',
-                  borderRadius: '12px',
-                  background: msg.sender === 'user' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  border: msg.sender === 'user' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid var(--border-color)',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                {msg.text}
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '92%' }}>
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    background: msg.sender === 'user' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    border: msg.sender === 'user' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid var(--border-color)',
+                    fontSize: '0.82rem',
+                    lineHeight: '1.5',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <FormattedMessage text={msg.text} />
+                </div>
+
+                {msg.actions?.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '2px' }}>
+                    {msg.actions.map((act, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setInputPrompt(act);
+                          dispatch(sendCopilotMessage({
+                            userPrompt: act,
+                            complaintId: selectedComplaint?.id,
+                            context: selectedComplaint || analysisResult
+                          }));
+                        }}
+                        style={{
+                          background: 'rgba(0, 212, 170, 0.1)',
+                          border: '1px solid rgba(0, 212, 170, 0.3)',
+                          color: 'var(--accent-cyan)',
+                          borderRadius: '14px',
+                          padding: '4px 10px',
+                          fontSize: '0.72rem',
+                          cursor: 'pointer',
+                          fontWeight: 500
+                        }}
+                      >
+                        ⚡ {act}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
+
             {chatLoading && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)' }}>
-                Copilot is thinking...
+              <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px' }}>
+                <Sparkles size={14} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
+                <span>Copilot is analyzing QMS data...</span>
               </div>
             )}
+            <div ref={chatEndRef} />
           </div>
 
           <form onSubmit={handleSend} style={{ display: 'flex', gap: '8px' }}>
@@ -201,12 +281,13 @@ export default function AICopilotDrawer() {
                 background: 'rgba(0, 0, 0, 0.3)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '8px 12px',
+                padding: '10px 12px',
                 color: 'var(--text-primary)',
-                fontSize: '0.8rem'
+                fontSize: '0.82rem',
+                outline: 'none'
               }}
             />
-            <button type="submit" className="btn-primary" style={{ padding: '8px 12px' }}>
+            <button type="submit" className="btn-primary" style={{ padding: '10px 14px' }}>
               <Send size={14} />
             </button>
           </form>
