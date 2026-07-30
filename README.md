@@ -145,15 +145,3 @@ npm run dev
 
 ---
 
-## Video Demo Checklist (5–10 Mins)
-
-When recording your submission video:
-1. **Working Demonstration**:
-   - Show the **Log Complaint Form** using a 1-click sample (e.g., FDF Blister Packaging or API Impurity).
-   - Click **"Auto-Fill Form with AI"** to demonstrate LangGraph extraction populating the fields.
-   - Click **"Save & Run LangGraph AI Risk Analysis"**.
-   - Show the **AI Copilot Drawer** populating Risk Hazard Level (Class I/II/III), Root Causes, CAPAs, and Copilot Chat.
-2. **Code Walkthrough**:
-   - Show `backend/app/ai/graph.py` (LangGraph StateGraph setup).
-   - Show `backend/app/ai/nodes.py` (Extraction, Duplicate Check, Risk/CAPA nodes).
-   - Show React Redux state flow in `LogComplaintForm.jsx` and `AICopilotDrawer.jsx`.
